@@ -22,7 +22,7 @@ fun AppNavigation(navController: NavHostController) {
             SignupScreen(navController)
         }
         composable("home") {
-            HomeScreen(navController)
+            HomeScreen()
         }
     }
 }

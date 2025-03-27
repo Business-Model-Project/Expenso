@@ -63,4 +63,10 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.auth.ktx) // ✅ Firebase Auth
+
+//    google database
+
+    implementation(platform(libs.firebase.bom.v3300))
+    implementation(libs.google.firebase.auth.ktx)  // Firebase Authentication
+    implementation(libs.firebase.firestore.ktx)  // Firestore Database ✅
 }
