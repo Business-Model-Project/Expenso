@@ -7,11 +7,11 @@ import androidx.navigation.compose.composable
 import com.example.expenso.ui.screens.*
 
 @Composable
-fun AppNavigation(navController: NavHostController) {
-    NavHost(navController = navController, startDestination = "landing") {  // ✅ Ensuring "home" is inside
+fun NavGraph(navController: NavHostController) {
+    NavHost(navController = navController, startDestination = "landing") {
         composable("landing") { LandingScreen(navController) }
         composable("login") { LoginScreen(navController) }
         composable("signup") { SignupScreen(navController) }
-        composable("home") { HomeScreen(navController) }  // ✅ Ensuring "home" is registered
+        composable("home") { HomeScreen(navController) }  // 🔥 FIX: Ensure "home" exists in the graph
     }
 }
