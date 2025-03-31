@@ -1,7 +1,7 @@
 package com.example.expenso.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.clickable  // ✅ Add this import
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,9 +40,13 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
         }
 
         when (authState) {
-            is AuthViewModel.AuthState.Loading -> CircularProgressIndicator()
             is AuthViewModel.AuthState.Success -> {
-                navController.navigate("home")
+                LaunchedEffect(Unit) {
+                    navController.navigate("home") {
+                        popUpTo("landing") { inclusive = true }  // ✅ Ensures no back navigation to Login
+                        launchSingleTop = true
+                    }
+                }
             }
             is AuthViewModel.AuthState.Error -> {
                 Text(text = (authState as AuthViewModel.AuthState.Error).message, color = Color.Red)
@@ -52,7 +56,6 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ✅ Fix clickable issue
         Text(
             text = buildAnnotatedString {
                 append("Don't have an account? ")
@@ -60,7 +63,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                     append("Sign up")
                 }
             },
-            modifier = Modifier.clickable { navController.navigate("signup") } // ✅ Fixed clickable modifier
+            modifier = Modifier.clickable { navController.navigate("signup") }
         )
     }
 }
