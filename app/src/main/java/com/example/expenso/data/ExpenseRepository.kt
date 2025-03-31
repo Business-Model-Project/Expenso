@@ -3,13 +3,12 @@ package com.example.expenso.data
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 
 data class Expense(
     val id: String = "",
     val amount: Double = 0.0,
     val category: String = "",
-    val date: Timestamp? = null,  //  Stores and retrieves timestamps using Firestore's built-in format
+    val date: Timestamp? = null,
     val note: String = ""
 )
 
@@ -26,19 +25,21 @@ class ExpenseRepository {
         db.collection("users").document(userId)
             .collection("expenses")
             .add(expense)
-            .await()
     }
 
-    suspend fun getExpenses(): List<Expense> {
-        val userId = getUserId() ?: return emptyList()
-        val snapshot = db.collection("users").document(userId)
-            .collection("expenses")
-            .get()
-            .await()
+    fun observeExpenses(onExpensesChanged: (List<Expense>) -> Unit) {
+        val userId = getUserId() ?: return
 
-        return snapshot.documents.mapNotNull { doc ->
-            doc.toObject(Expense::class.java)?.copy(id = doc.id) ?: Expense(id = doc.id)
-        }
+        db.collection("users").document(userId)
+            .collection("expenses")
+            .addSnapshotListener { snapshot, _ ->
+                if (snapshot != null) {
+                    val expenses = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(Expense::class.java)?.copy(id = doc.id)
+                    }
+                    onExpensesChanged(expenses) // 🔥 Real-time update
+                }
+            }
     }
 
     suspend fun deleteExpense(expenseId: String) {
@@ -47,6 +48,5 @@ class ExpenseRepository {
             .collection("expenses")
             .document(expenseId)
             .delete()
-            .await()
     }
 }

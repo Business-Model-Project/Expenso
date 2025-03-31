@@ -26,8 +26,6 @@ fun HomeScreen(navController: NavController, expenseViewModel: ExpenseViewModel 
         Text("Expense Tracker", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-
-
         if (expenses.isEmpty()) {
             Text("No expenses found", style = MaterialTheme.typography.bodyMedium)
         } else {
@@ -44,7 +42,7 @@ fun HomeScreen(navController: NavController, expenseViewModel: ExpenseViewModel 
 fun ExpenseItem(expense: Expense) {
     val dateFormatted = expense.date?.toDate()?.let {
         SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(it)
-    } ?: "Unknown Date"  // ✅ If null, show "Unknown Date"
+    } ?: "Unknown Date"
 
     Card(
         modifier = Modifier.fillMaxWidth().padding(8.dp),
@@ -54,6 +52,7 @@ fun ExpenseItem(expense: Expense) {
             Text(text = expense.category, style = MaterialTheme.typography.bodyLarge)
             Text(text = "Amount: €${expense.amount}", style = MaterialTheme.typography.bodyMedium)
             Text(text = "Date: $dateFormatted", style = MaterialTheme.typography.bodyMedium)
+            Text(text = "Note: ${expense.note}", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
