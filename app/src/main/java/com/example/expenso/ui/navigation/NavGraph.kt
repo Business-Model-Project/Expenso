@@ -12,6 +12,6 @@ fun NavGraph(navController: NavHostController) {
         composable("landing") { LandingScreen(navController) }
         composable("login") { LoginScreen(navController) }
         composable("signup") { SignupScreen(navController) }
-        composable("home") { HomeScreen(navController) }  // 🔥 FIX: Ensure "home" exists in the graph
+        composable("home") { HomeScreen(navController) }  // 🔥 FIX: Make sure the "home" node is present in navigation graph
     }
 }

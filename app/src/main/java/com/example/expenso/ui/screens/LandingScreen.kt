@@ -38,7 +38,7 @@ fun LandingScreen(navController: NavController) {
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        TextButton(onClick = { navController.navigate("home") }) {  // ✅ Now properly navigates
+        TextButton(onClick = { navController.navigate("home") }) {
             Text("Skip", color = Color.Gray)
         }
     }

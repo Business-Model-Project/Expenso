@@ -26,17 +26,7 @@ fun HomeScreen(navController: NavController, expenseViewModel: ExpenseViewModel 
         Text("Expense Tracker", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ✅ Navigation Buttons
-        Button(onClick = { navController.navigate("add_expense") }) {
-            Text("Add Expense")
-        }
-        Spacer(modifier = Modifier.height(8.dp))
 
-        Button(onClick = { navController.navigate("settings") }) {  // ✅ Added back your "Go to Settings" button
-            Text("Go to Settings")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         if (expenses.isEmpty()) {
             Text("No expenses found", style = MaterialTheme.typography.bodyMedium)

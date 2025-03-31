@@ -43,7 +43,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
             is AuthViewModel.AuthState.Success -> {
                 LaunchedEffect(Unit) {
                     navController.navigate("home") {
-                        popUpTo("landing") { inclusive = true }  // ✅ Ensures no back navigation to Login
+                        popUpTo("landing") { inclusive = true }
                         launchSingleTop = true
                     }
                 }

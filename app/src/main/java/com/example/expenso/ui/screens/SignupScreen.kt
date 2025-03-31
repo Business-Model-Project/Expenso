@@ -53,7 +53,7 @@ fun SignupScreen(navController: NavController, authViewModel: AuthViewModel = vi
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // ✅ Fix clickable issue
+
         Text(
             text = buildAnnotatedString {
                 append("Already have an account? ")
@@ -61,7 +61,7 @@ fun SignupScreen(navController: NavController, authViewModel: AuthViewModel = vi
                     append("Login")
                 }
             },
-            modifier = Modifier.clickable { navController.navigate("login") } // ✅ Fixed clickable modifier
+            modifier = Modifier.clickable { navController.navigate("login") }
         )
     }
 }

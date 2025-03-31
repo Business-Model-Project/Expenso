@@ -15,12 +15,12 @@ fun MainScreen() {
     val navController = rememberNavController()
 
     Scaffold(
-        bottomBar = { BottomNavBar(navController) } // ✅ Keeps bottom bar visible
+        bottomBar = { BottomNavBar(navController) } //  bottom bar is always visible
     ) { innerPadding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding) // ✅ Avoids content overlapping the nav bar
+                .padding(innerPadding) //  Avoids content overlapping the bottom nav bar
         ) {
             MainNavigationGraph(navController)
         }

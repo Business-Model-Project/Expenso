@@ -9,7 +9,7 @@ data class Expense(
     val id: String = "",
     val amount: Double = 0.0,
     val category: String = "",
-    val date: Timestamp? = null,  // ✅ Uses Firestore Timestamp
+    val date: Timestamp? = null,  //  Stores and retrieves timestamps using Firestore's built-in format
     val note: String = ""
 )
 

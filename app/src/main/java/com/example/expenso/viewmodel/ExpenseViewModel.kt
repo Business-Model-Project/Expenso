@@ -27,14 +27,14 @@ class ExpenseViewModel : ViewModel() {
     fun addExpense(expense: Expense) {
         viewModelScope.launch {
             repository.addExpense(expense)
-            fetchExpenses() // ✅ Refreshes list after adding
+            fetchExpenses() // always Refreshes list after adding
         }
     }
 
     fun deleteExpense(expenseId: String) {
         viewModelScope.launch {
             repository.deleteExpense(expenseId)
-            fetchExpenses() // ✅ Refreshes list after deleting
+            fetchExpenses() // always Refreshes list after deleting
         }
     }
 }
