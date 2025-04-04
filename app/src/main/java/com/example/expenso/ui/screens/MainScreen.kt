@@ -9,10 +9,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.expenso.ui.navigation.BottomNavBar
+import com.example.expenso.viewmodel.CategoryViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
+
+    // Shared Category ViewModel
+    val categoryViewModel: CategoryViewModel = viewModel()
 
     // Track current route
     var currentRoute by remember { mutableStateOf("") }
@@ -39,13 +44,16 @@ fun MainScreen() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            MainNavigationGraph(navController)
+            MainNavigationGraph(navController, categoryViewModel)
         }
     }
 }
 
 @Composable
-fun MainNavigationGraph(navController: NavHostController) {
+fun MainNavigationGraph(
+    navController: NavHostController,
+    categoryViewModel: CategoryViewModel
+) {
     NavHost(navController = navController, startDestination = "landing") {
         composable("landing") { LandingScreen(navController) }
         composable("login") { LoginScreen(navController) }
@@ -55,7 +63,15 @@ fun MainNavigationGraph(navController: NavHostController) {
             AddExpenseScreen(onExpenseAdded = { navController.popBackStack() })
         }
         composable("reports") { ReportsScreen() }
-        composable("categories") { CategoriesScreen() }
+
+        composable("categories") {
+            CategoriesScreen(navController, categoryViewModel)
+        }
+
+        composable("add_category") {
+            AddCategoryScreen(navController, categoryViewModel)
+        }
+
         composable("settings") {
             SettingsScreen(onLogoutSuccess = {
                 navController.navigate("landing") {
