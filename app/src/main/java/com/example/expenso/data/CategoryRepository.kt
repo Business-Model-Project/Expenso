@@ -45,4 +45,13 @@ class CategoryRepository {
             .delete()
             .await()
     }
+
+    suspend fun updateCategory(categoryId: String, newName: String) {
+        val userId = getUserId() ?: return
+        db.collection("users").document(userId)
+            .collection("categories")
+            .document(categoryId)
+            .update("name", newName)
+            .await()
+    }
 }

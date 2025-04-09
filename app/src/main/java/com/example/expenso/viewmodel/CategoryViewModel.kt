@@ -15,6 +15,13 @@ class CategoryViewModel : ViewModel() {
     private val _categories = MutableStateFlow<List<Category>>(emptyList())
     val categories: StateFlow<List<Category>> = _categories
 
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message
+
+    fun clearMessage() {
+        _message.value = null
+    }
+
     init {
         fetchCategories()
     }
@@ -28,14 +35,27 @@ class CategoryViewModel : ViewModel() {
     fun addCategory(name: String) {
         viewModelScope.launch {
             repository.addCategory(name)
-            fetchCategories() // Refresh list after adding
+            fetchCategories()
         }
     }
 
     fun deleteCategory(categoryId: String) {
         viewModelScope.launch {
             repository.deleteCategory(categoryId)
-            fetchCategories() // Refresh list after deletion
+            fetchCategories()
+        }
+    }
+
+    fun updateCategory(categoryId: String, newName: String) {
+        viewModelScope.launch {
+            if (newName.isBlank()) {
+                _message.value = "Category name cannot be empty"
+                return@launch
+            }
+
+            repository.updateCategory(categoryId, newName)
+            _message.value = "Category updated successfully"
+            fetchCategories()
         }
     }
 }

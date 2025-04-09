@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -56,17 +57,30 @@ fun CategoriesScreen(
                                 text = category.name,
                                 style = MaterialTheme.typography.bodyLarge
                             )
-                            IconButton(
-                                onClick = {
-                                    categoryToDelete = category
-                                    showDeleteDialog = true
+                            Row {
+                                IconButton(
+                                    onClick = {
+                                        navController.navigate("edit_category/${category.id}/${category.name}")
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit Category",
+                                        tint = Color.Blue
+                                    )
                                 }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = "Delete Category",
-                                    tint = Color.Red // Set the delete icon to red
-                                )
+                                IconButton(
+                                    onClick = {
+                                        categoryToDelete = category
+                                        showDeleteDialog = true
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete Category",
+                                        tint = Color.Red
+                                    )
+                                }
                             }
                         }
                     }
@@ -114,4 +128,3 @@ fun CategoriesScreen(
         )
     }
 }
-

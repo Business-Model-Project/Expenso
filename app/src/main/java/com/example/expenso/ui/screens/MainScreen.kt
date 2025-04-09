@@ -4,13 +4,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.navigation.NavType
+import androidx.navigation.compose.*
 import com.example.expenso.ui.navigation.BottomNavBar
 import com.example.expenso.viewmodel.CategoryViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
+import androidx.navigation.navArgument
 
 @Composable
 fun MainScreen() {
@@ -75,9 +75,22 @@ fun MainNavigationGraph(
         composable("settings") {
             SettingsScreen(onLogoutSuccess = {
                 navController.navigate("landing") {
-                    popUpTo(0) { inclusive = true } // Clears the entire back stack
+                    popUpTo(0) { inclusive = true }
                 }
             })
+        }
+
+        // 🔥 Add this route for editing category
+        composable(
+            route = "edit_category/{categoryId}/{categoryName}",
+            arguments = listOf(
+                navArgument("categoryId") { type = NavType.StringType },
+                navArgument("categoryName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
+            val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
+            EditCategoryScreen(navController, categoryId, categoryName, categoryViewModel)
         }
     }
 }
