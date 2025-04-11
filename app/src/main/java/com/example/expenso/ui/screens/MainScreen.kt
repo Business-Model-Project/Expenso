@@ -62,6 +62,11 @@ fun MainNavigationGraph(
         composable("add_expense") {
             AddExpenseScreen(onExpenseAdded = { navController.popBackStack() })
         }
+        composable("edit_expense/{expenseId}") { backStackEntry ->
+            val expenseId = backStackEntry.arguments?.getString("expenseId") ?: ""
+            EditExpenseScreen(navController, expenseId)
+        }
+
         composable("reports") { ReportsScreen() }
 
         composable("categories") {

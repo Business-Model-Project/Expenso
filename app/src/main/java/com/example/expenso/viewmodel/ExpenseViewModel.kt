@@ -30,6 +30,11 @@ class ExpenseViewModel : ViewModel() {
             // No need to call fetchExpenses() since it's real-time now!
         }
     }
+    fun editExpense(expense: Expense) {
+        viewModelScope.launch {
+            repository.updateExpense(expense)
+        }
+    }
 
     fun deleteExpense(expenseId: String) {
         viewModelScope.launch {

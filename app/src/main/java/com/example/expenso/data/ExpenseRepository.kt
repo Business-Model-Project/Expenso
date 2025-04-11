@@ -41,6 +41,13 @@ class ExpenseRepository {
                 }
             }
     }
+    suspend fun updateExpense(expense: Expense) {
+        val userId = getUserId() ?: return
+        db.collection("users").document(userId)
+            .collection("expenses")
+            .document(expense.id)
+            .set(expense)  // Overwrites existing doc with updated data
+    }
 
     suspend fun deleteExpense(expenseId: String) {
         val userId = getUserId() ?: return
@@ -50,3 +57,4 @@ class ExpenseRepository {
             .delete()
     }
 }
+
