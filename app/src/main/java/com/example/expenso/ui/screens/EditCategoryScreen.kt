@@ -9,6 +9,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.expenso.viewmodel.CategoryViewModel
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -16,9 +18,16 @@ fun EditCategoryScreen(
     navController: NavController,
     categoryId: String,
     currentName: String,
+    currentDescription: String,
+    encodedImageUrl: String,
     categoryViewModel: CategoryViewModel
 ) {
+    val decodedImageUrl = URLDecoder.decode(encodedImageUrl, StandardCharsets.UTF_8.toString())
+
     var newName by remember { mutableStateOf(currentName) }
+    var newDescription by remember { mutableStateOf(currentDescription) }
+    var newImageUrl by remember { mutableStateOf(decodedImageUrl) }
+
     val context = LocalContext.current
     val message by categoryViewModel.message.collectAsState()
 
@@ -51,9 +60,28 @@ fun EditCategoryScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            OutlinedTextField(
+                value = newDescription,
+                onValueChange = { newDescription = it },
+                label = { Text("Description") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            OutlinedTextField(
+                value = newImageUrl,
+                onValueChange = { newImageUrl = it },
+                label = { Text("Image URL") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             Button(
                 onClick = {
-                    categoryViewModel.updateCategory(categoryId, newName.trim())
+                    categoryViewModel.updateCategory(
+                        categoryId = categoryId,
+                        newName = newName.trim(),
+                        newDescription = newDescription.trim(),
+                        newImageUrl = newImageUrl.trim()
+                    )
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {

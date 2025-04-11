@@ -6,7 +6,9 @@ import kotlinx.coroutines.tasks.await
 
 data class Category(
     val id: String = "",
-    val name: String = ""
+    val name: String = "",
+    val description: String = "",
+    val imageUrl: String = ""
 )
 
 class CategoryRepository {
@@ -15,9 +17,13 @@ class CategoryRepository {
 
     private fun getUserId(): String? = auth.currentUser?.uid
 
-    suspend fun addCategory(name: String) {
+    suspend fun addCategory(name: String, description: String, imageUrl: String) {
         val userId = getUserId() ?: return
-        val category = hashMapOf("name" to name)
+        val category = hashMapOf(
+            "name" to name,
+            "description" to description,
+            "imageUrl" to imageUrl
+        )
         db.collection("users").document(userId)
             .collection("categories")
             .add(category)
@@ -33,7 +39,9 @@ class CategoryRepository {
 
         return snapshot.documents.mapNotNull { doc ->
             val name = doc.getString("name") ?: return@mapNotNull null
-            Category(id = doc.id, name = name)
+            val description = doc.getString("description") ?: ""
+            val imageUrl = doc.getString("imageUrl") ?: ""
+            Category(id = doc.id, name = name, description = description, imageUrl = imageUrl)
         }
     }
 
@@ -46,12 +54,17 @@ class CategoryRepository {
             .await()
     }
 
-    suspend fun updateCategory(categoryId: String, newName: String) {
+    suspend fun updateCategory(categoryId: String, newName: String, newDescription: String, newImageUrl: String) {
         val userId = getUserId() ?: return
+        val updates = mapOf(
+            "name" to newName,
+            "description" to newDescription,
+            "imageUrl" to newImageUrl
+        )
         db.collection("users").document(userId)
             .collection("categories")
             .document(categoryId)
-            .update("name", newName)
+            .update(updates)
             .await()
     }
 }

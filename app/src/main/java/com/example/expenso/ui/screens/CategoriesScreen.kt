@@ -1,5 +1,6 @@
 package com.example.expenso.ui.screens
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,12 +9,17 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import coil.compose.rememberAsyncImagePainter
 import com.example.expenso.data.Category
 import com.example.expenso.viewmodel.CategoryViewModel
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 @Composable
 fun CategoriesScreen(
@@ -39,28 +45,57 @@ fun CategoriesScreen(
         if (categories.isEmpty()) {
             Text("No categories found.")
         } else {
-            LazyColumn {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(categories) { category ->
                     Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(4.dp),
+                        shape = MaterialTheme.shapes.medium
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = category.name,
-                                style = MaterialTheme.typography.bodyLarge
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp)
+                            ) {
+                                Text(
+                                    text = category.name,
+                                    style = MaterialTheme.typography.titleLarge
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = category.description ?: "No description",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = Color.Gray
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Image(
+                                painter = rememberAsyncImagePainter(category.imageUrl),
+                                contentDescription = "${category.name} image",
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .padding(end = 4.dp),
+                                contentScale = ContentScale.Crop
                             )
-                            Row {
+
+                            Column(
+                                verticalArrangement = Arrangement.SpaceBetween,
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
                                 IconButton(
                                     onClick = {
-                                        navController.navigate("edit_category/${category.id}/${category.name}")
+                                        val encodedUrl = URLEncoder.encode(category.imageUrl, StandardCharsets.UTF_8.toString())
+                                        navController.navigate(
+                                            "edit_category/${category.id}/${category.name}/${category.description ?: ""}/$encodedUrl"
+                                        )
                                     }
                                 ) {
                                     Icon(
@@ -100,7 +135,6 @@ fun CategoriesScreen(
         }
     }
 
-    // Delete Confirmation Dialog
     if (showDeleteDialog && categoryToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -119,9 +153,7 @@ fun CategoriesScreen(
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showDeleteDialog = false }
-                ) {
+                TextButton(onClick = { showDeleteDialog = false }) {
                     Text("Cancel")
                 }
             }

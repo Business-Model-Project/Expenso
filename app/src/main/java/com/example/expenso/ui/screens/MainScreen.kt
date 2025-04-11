@@ -4,32 +4,27 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavType
-import androidx.navigation.compose.*
-import com.example.expenso.ui.navigation.BottomNavBar
-import com.example.expenso.viewmodel.CategoryViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.example.expenso.ui.navigation.BottomNavBar
+import com.example.expenso.viewmodel.CategoryViewModel
 
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
-
-    // Shared Category ViewModel
     val categoryViewModel: CategoryViewModel = viewModel()
 
-    // Track current route
     var currentRoute by remember { mutableStateOf("") }
 
-    // Observe route changes
     LaunchedEffect(navController) {
         navController.currentBackStackEntryFlow.collect { backStackEntry ->
             currentRoute = backStackEntry.destination.route ?: ""
         }
     }
 
-    // List of screens where the BottomBar should be hidden
     val hideBottomBarScreens = listOf("landing", "login", "signup")
 
     Scaffold(
@@ -85,17 +80,29 @@ fun MainNavigationGraph(
             })
         }
 
-        // 🔥 Add this route for editing category
+        // ✅ Updated route to match EditCategoryScreen’s required parameters
         composable(
-            route = "edit_category/{categoryId}/{categoryName}",
+            route = "edit_category/{categoryId}/{categoryName}/{categoryDescription}/{encodedImageUrl}",
             arguments = listOf(
                 navArgument("categoryId") { type = NavType.StringType },
-                navArgument("categoryName") { type = NavType.StringType }
+                navArgument("categoryName") { type = NavType.StringType },
+                navArgument("categoryDescription") { type = NavType.StringType },
+                navArgument("encodedImageUrl") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val categoryId = backStackEntry.arguments?.getString("categoryId") ?: ""
             val categoryName = backStackEntry.arguments?.getString("categoryName") ?: ""
-            EditCategoryScreen(navController, categoryId, categoryName, categoryViewModel)
+            val categoryDescription = backStackEntry.arguments?.getString("categoryDescription") ?: ""
+            val encodedImageUrl = backStackEntry.arguments?.getString("encodedImageUrl") ?: ""
+
+            EditCategoryScreen(
+                navController = navController,
+                categoryId = categoryId,
+                currentName = categoryName,
+                currentDescription = categoryDescription,
+                encodedImageUrl = encodedImageUrl,
+                categoryViewModel = categoryViewModel
+            )
         }
     }
 }

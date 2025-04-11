@@ -32,9 +32,15 @@ class CategoryViewModel : ViewModel() {
         }
     }
 
-    fun addCategory(name: String) {
+    fun addCategory(name: String, description: String, imageUrl: String) {
         viewModelScope.launch {
-            repository.addCategory(name)
+            if (name.isBlank()) {
+                _message.value = "Category name cannot be empty"
+                return@launch
+            }
+
+            repository.addCategory(name, description, imageUrl)
+            _message.value = "Category added successfully"
             fetchCategories()
         }
     }
@@ -46,14 +52,14 @@ class CategoryViewModel : ViewModel() {
         }
     }
 
-    fun updateCategory(categoryId: String, newName: String) {
+    fun updateCategory(categoryId: String, newName: String, newDescription: String, newImageUrl: String) {
         viewModelScope.launch {
             if (newName.isBlank()) {
                 _message.value = "Category name cannot be empty"
                 return@launch
             }
 
-            repository.updateCategory(categoryId, newName)
+            repository.updateCategory(categoryId, newName, newDescription, newImageUrl)
             _message.value = "Category updated successfully"
             fetchCategories()
         }

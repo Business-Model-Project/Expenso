@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("com.google.gms.google-services")
+
 }
 
 android {
@@ -70,4 +71,8 @@ dependencies {
     implementation(platform(libs.firebase.bom.v3300))
     implementation(libs.google.firebase.auth.ktx)  // Firebase Authentication
     implementation(libs.firebase.firestore.ktx)  // Firestore Database ✅
+
+
+//    coil
+    implementation(libs.coil.compose)
 }
