@@ -1,6 +1,7 @@
 package com.example.expenso.ui.screens
 
 import android.app.DatePickerDialog
+import android.content.Context
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -16,9 +17,13 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.expenso.data.Expense
+import com.example.expenso.utils.NotificationUtils
 import com.example.expenso.viewmodel.CategoryViewModel
 import com.example.expenso.viewmodel.ExpenseViewModel
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import java.text.SimpleDateFormat
+import kotlinx.coroutines.tasks.await
 import java.util.*
 
 @Composable
@@ -42,43 +47,83 @@ fun HomeScreen(
         val expenseDate = expense.date?.toDate() ?: return@filter false
         val cal = Calendar.getInstance()
 
-        when (selectedFilter) {
+        val matchesFilter = when (selectedFilter) {
             "Monthly" -> {
                 val now = Calendar.getInstance()
                 cal.time = expenseDate
                 cal.get(Calendar.MONTH) == now.get(Calendar.MONTH) &&
                         cal.get(Calendar.YEAR) == now.get(Calendar.YEAR)
             }
-
             "Weekly" -> {
                 val now = Calendar.getInstance()
                 cal.time = expenseDate
                 cal.get(Calendar.WEEK_OF_YEAR) == now.get(Calendar.WEEK_OF_YEAR) &&
                         cal.get(Calendar.YEAR) == now.get(Calendar.YEAR)
             }
-
             "Range" -> {
                 if (startDate != null && endDate != null) {
                     expenseDate in startDate!!..endDate!!
                 } else true
             }
-
             else -> true
-        } && (selectedCategory.isBlank() || expense.category == selectedCategory)
+        }
+
+        val matchesCategory = selectedCategory.isBlank() || expense.category == selectedCategory
+
+        matchesFilter && matchesCategory
     }.sortedByDescending { it.date }
 
     val totalAmount = filteredExpenses.sumOf { it.amount }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
+    val context = LocalContext.current
+
+    // Budget tracking state
+    var budget by remember { mutableStateOf(0.0) }
+    var notifyOnExceed by remember { mutableStateOf(false) }
+    var notificationSentThisSession by remember { mutableStateOf(false) }
+
+    // Load budget settings from Firestore
+    LaunchedEffect(Unit) {
+        val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return@LaunchedEffect
+        try {
+            val doc = FirebaseFirestore.getInstance()
+                .collection("users")
+                .document(userId)
+                .get()
+                .await()
+
+            doc.getDouble("budget")?.let { budget = it }
+            doc.getBoolean("notifyOnExceed")?.let { notifyOnExceed = it }
+        } catch (e: Exception) {
+            // Silent fail - budget features will be disabled
+        }
+    }
+
+    // Budget notification logic
+    LaunchedEffect(totalAmount) {
+        if (notifyOnExceed && budget > 0 && totalAmount > budget) {
+            if (!notificationSentThisSession) {
+                NotificationUtils.sendBudgetExceededNotification(context, totalAmount, budget)
+                notificationSentThisSession = true
+            }
+        } else if (totalAmount <= budget * 0.9) { // Reset if spending drops below 90% of budget
+            notificationSentThisSession = false
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Expense Tracker", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(12.dp))
 
+        // Budget status card
         Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+            colors = CardDefaults.cardColors(
+                containerColor = when {
+                    budget > 0 && totalAmount > budget -> MaterialTheme.colorScheme.errorContainer
+                    budget > 0 -> MaterialTheme.colorScheme.primaryContainer
+                    else -> MaterialTheme.colorScheme.surfaceVariant
+                }
+            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 12.dp)
@@ -88,13 +133,24 @@ fun HomeScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("Total: €${"%.2f".format(totalAmount)}", style = MaterialTheme.typography.headlineSmall)
+                if (budget > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Budget: €${"%.2f".format(budget)} (${"%.1f".format(totalAmount/budget*100)}%)",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    if (totalAmount > budget) {
+                        Text(
+                            "Over budget by €${"%.2f".format(totalAmount - budget)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
         }
 
-        FilterChipsRow(
-            selectedFilter = selectedFilter,
-            onFilterSelected = { selectedFilter = it }
-        )
+        FilterChipsRow(selectedFilter) { selectedFilter = it }
 
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -118,13 +174,19 @@ fun HomeScreen(
                 },
                 formatter = dateFormatter
             )
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
+        Spacer(modifier = Modifier.height(12.dp))
+
         if (filteredExpenses.isEmpty()) {
-            Text("No expenses found", style = MaterialTheme.typography.bodyMedium)
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No expenses found", style = MaterialTheme.typography.bodyMedium)
+            }
         } else {
-            LazyColumn {
+            LazyColumn(modifier = Modifier.weight(1f)) {
                 items(filteredExpenses) { expense ->
                     ExpenseItem(
                         expense = expense,
@@ -142,9 +204,12 @@ fun HomeScreen(
 }
 
 @Composable
-fun FilterChipsRow(selectedFilter: String, onFilterSelected: (String) -> Unit) {
+private fun FilterChipsRow(selectedFilter: String, onFilterSelected: (String) -> Unit) {
     val filters = listOf("All", "Monthly", "Weekly", "Range")
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
         filters.forEach { label ->
             FilterChip(
                 selected = selectedFilter == label,
@@ -156,7 +221,7 @@ fun FilterChipsRow(selectedFilter: String, onFilterSelected: (String) -> Unit) {
 }
 
 @Composable
-fun CategoryDropdown(
+private fun CategoryDropdown(
     categories: List<String>,
     selectedCategory: String,
     onCategorySelected: (String) -> Unit
@@ -166,9 +231,7 @@ fun CategoryDropdown(
     val allOptions = listOf("All Categories") + categories
     val selectedText = if (selectedCategory.isBlank()) "All Categories" else selectedCategory
 
-    Box(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 8.dp)) {
+    Box(modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(
             onClick = { expanded = true },
             modifier = Modifier.fillMaxWidth()
@@ -178,8 +241,7 @@ fun CategoryDropdown(
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.fillMaxWidth()
+            onDismissRequest = { expanded = false }
         ) {
             allOptions.forEach { option ->
                 DropdownMenuItem(
@@ -195,7 +257,7 @@ fun CategoryDropdown(
 }
 
 @Composable
-fun DateRangeSelector(
+private fun DateRangeSelector(
     startDate: Date?,
     endDate: Date?,
     onStartSelected: (Date) -> Unit,
@@ -222,10 +284,7 @@ fun DateRangeSelector(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = { startPicker.show() }) {
             Text(text = startDate?.let { "From: ${formatter.format(it)}" } ?: "From")
         }
@@ -235,7 +294,7 @@ fun DateRangeSelector(
         }
 
         if (startDate != null || endDate != null) {
-            TextButton(onClick = { onReset() }) {
+            TextButton(onClick = onReset) {
                 Text("Reset")
             }
         }
@@ -243,7 +302,7 @@ fun DateRangeSelector(
 }
 
 @Composable
-fun ExpenseItem(
+private fun ExpenseItem(
     expense: Expense,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit
@@ -278,8 +337,8 @@ fun ExpenseItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(8.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
             modifier = Modifier
@@ -290,12 +349,14 @@ fun ExpenseItem(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(text = expense.category, style = MaterialTheme.typography.titleLarge)
-                Text(text = "Amount: €${expense.amount}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Date: $dateFormatted", style = MaterialTheme.typography.bodyMedium)
-                Text(text = "Note: ${expense.note}", style = MaterialTheme.typography.bodyMedium)
+                Text(text = "€${"%.2f".format(expense.amount)}", style = MaterialTheme.typography.bodyMedium)
+                Text(text = dateFormatted, style = MaterialTheme.typography.bodySmall)
+                if (expense.note.isNotBlank()) {
+                    Text(text = expense.note, style = MaterialTheme.typography.bodySmall)
+                }
             }
 
-            Column {
+            Row {
                 IconButton(onClick = onEditClick) {
                     Icon(Icons.Default.Edit, contentDescription = "Edit")
                 }
