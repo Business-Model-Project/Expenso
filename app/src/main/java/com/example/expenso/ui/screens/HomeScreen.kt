@@ -100,7 +100,7 @@ fun HomeScreen(
     }
 
     // Budget notification logic
-    LaunchedEffect(totalAmount) {
+    LaunchedEffect(totalAmount, notifyOnExceed) {  // Add notifyOnExceed as a dependency
         if (notifyOnExceed && budget > 0 && totalAmount > budget) {
             if (!notificationSentThisSession) {
                 NotificationUtils.sendBudgetExceededNotification(context, totalAmount, budget)

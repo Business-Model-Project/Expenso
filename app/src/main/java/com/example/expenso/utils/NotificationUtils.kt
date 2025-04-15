@@ -56,4 +56,36 @@ object NotificationUtils {
             notificationManager.createNotificationChannel(channel)
         }
     }
+    private const val PASSWORD_CHANGE_CHANNEL_ID = "password_change_channel"
+    private const val PASSWORD_CHANGE_NOTIFICATION_ID = 1002
+
+    fun sendPasswordChangedNotification(context: Context) {
+        createPasswordChangeChannel(context)
+
+        val notification = NotificationCompat.Builder(context, PASSWORD_CHANGE_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_landing) // Use appropriate icon
+            .setContentTitle("Password Changed")
+            .setContentText("Your password has been changed successfully")
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(PASSWORD_CHANGE_NOTIFICATION_ID, notification)
+    }
+
+    private fun createPasswordChangeChannel(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                PASSWORD_CHANGE_CHANNEL_ID,
+                "Password Changes",
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply {
+                description = "Notifications for password changes"
+            }
+
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
 }
