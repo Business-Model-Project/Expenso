@@ -15,26 +15,30 @@ class ExpenseViewModel : ViewModel() {
     val expenses: StateFlow<List<Expense>> = _expenses
 
     init {
-        fetchExpenses()
+        observeExpenses() // 🔥 Listen to real-time Firestore updates
     }
 
-    fun fetchExpenses() {
-        viewModelScope.launch {
-            _expenses.value = repository.getExpenses()
+    private fun observeExpenses() {
+        repository.observeExpenses { updatedExpenses ->
+            _expenses.value = updatedExpenses // 🔄 Updates the UI immediately
         }
     }
 
     fun addExpense(expense: Expense) {
         viewModelScope.launch {
             repository.addExpense(expense)
-            fetchExpenses() // always Refreshes list after adding
+            // No need to call fetchExpenses() since it's real-time now!
+        }
+    }
+    fun editExpense(expense: Expense) {
+        viewModelScope.launch {
+            repository.updateExpense(expense)
         }
     }
 
     fun deleteExpense(expenseId: String) {
         viewModelScope.launch {
             repository.deleteExpense(expenseId)
-            fetchExpenses() // always Refreshes list after deleting
         }
     }
 }
