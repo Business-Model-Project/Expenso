@@ -3,100 +3,105 @@ package com.example.expenso.ui.screens
 import android.app.DatePickerDialog
 import android.widget.DatePicker
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import com.example.expenso.data.Expense
-import com.example.expenso.viewmodel.ExpenseViewModel
 import com.example.expenso.viewmodel.CategoryViewModel
+import com.example.expenso.viewmodel.ExpenseViewModel
 import com.google.firebase.Timestamp
+import java.text.SimpleDateFormat
 import java.util.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddExpenseScreen(
-    onExpenseAdded: () -> Unit,
+fun EditExpenseScreen(
+    navController: NavController,
+    expenseId: String,
     expenseViewModel: ExpenseViewModel = viewModel(),
     categoryViewModel: CategoryViewModel = viewModel()
 ) {
-    var amount by remember { mutableStateOf("") }
-    var note by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf<Timestamp?>(null) }
+    val expense = expenseViewModel.expenses.collectAsState().value.find { it.id == expenseId }
 
-    val context = LocalContext.current
-    val calendar = Calendar.getInstance()
+    if (expense == null) {
+        Text("Expense not found.")
+        return
+    }
 
     val categories by categoryViewModel.categories.collectAsState()
 
-    var expanded by remember { mutableStateOf(false) }
-    var selectedCategory by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf(expense.amount.toString()) }
+    var category by remember { mutableStateOf(expense.category) }
+    var note by remember { mutableStateOf(expense.note) }
+    var date by remember {
+        mutableStateOf(
+            expense.date?.toDate()?.let {
+                SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(it)
+            } ?: ""
+        )
+    }
 
+    // Dropdown state
+    var expanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
+    val calendar = Calendar.getInstance()
     val datePickerDialog = DatePickerDialog(
         context,
         { _: DatePicker, year: Int, month: Int, day: Int ->
-            calendar.set(year, month, day)
-            date = Timestamp(calendar.time)
+            date = "$day/${month + 1}/$year"
         },
         calendar.get(Calendar.YEAR),
         calendar.get(Calendar.MONTH),
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text(text = "Add Expense", style = MaterialTheme.typography.headlineMedium)
+    Column(modifier = Modifier.padding(16.dp)) {
+        Text("Edit Expense", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = amount,
             onValueChange = { amount = it },
             label = { Text("Amount") },
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
             modifier = Modifier.fillMaxWidth()
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Category dropdown
-        ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = !expanded }) {
+        // ✅ Read-only dropdown for category
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
             OutlinedTextField(
-                value = selectedCategory,
+                value = category,
                 onValueChange = {},
-                label = { Text("Category") },
                 readOnly = true,
+                label = { Text("Category") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
                 modifier = Modifier
-                    .fillMaxWidth()
                     .menuAnchor()
+                    .fillMaxWidth()
             )
+
             ExposedDropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false }
             ) {
-                if (categories.isNotEmpty()) {
-                    categories.forEach { category ->
-                        DropdownMenuItem(
-                            text = { Text(category.name) },
-                            onClick = {
-                                selectedCategory = category.name
-                                expanded = false
-                            }
-                        )
-                    }
-                } else {
+                categories.forEach { cat ->
                     DropdownMenuItem(
-                        text = { Text("Go to Add Category") },
+                        text = { Text(cat.name) },
                         onClick = {
-                            // You can navigate to add_category if needed here
+                            category = cat.name
                             expanded = false
                         }
                     )
@@ -116,13 +121,13 @@ fun AddExpenseScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = date?.toDate()?.toString() ?: "Select Date",
-            onValueChange = { },
+            value = date,
+            onValueChange = {},
             label = { Text("Date") },
             readOnly = true,
             trailingIcon = {
                 IconButton(onClick = { datePickerDialog.show() }) {
-                    Icon(Icons.Filled.DateRange, contentDescription = "Select Date")
+                    Icon(Icons.Filled.DateRange, contentDescription = "Pick Date")
                 }
             },
             modifier = Modifier.fillMaxWidth()
@@ -132,21 +137,26 @@ fun AddExpenseScreen(
 
         Button(
             onClick = {
-                if (amount.isNotEmpty() && selectedCategory.isNotEmpty() && date != null) {
-                    expenseViewModel.addExpense(
-                        Expense(
-                            amount = amount.toDouble(),
-                            category = selectedCategory,
-                            date = date,
-                            note = note
-                        )
-                    )
-                    onExpenseAdded()
+                val parsedDate = try {
+                    val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                    Timestamp(sdf.parse(date)!!)
+                } catch (e: Exception) {
+                    null
                 }
+
+                val updatedExpense = expense.copy(
+                    amount = amount.toDoubleOrNull() ?: 0.0,
+                    category = category,
+                    note = note,
+                    date = parsedDate
+                )
+
+                expenseViewModel.editExpense(updatedExpense)
+                navController.popBackStack()
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Save Expense")
+            Text("Update Expense")
         }
     }
 }
