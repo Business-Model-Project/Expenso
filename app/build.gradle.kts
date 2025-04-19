@@ -76,6 +76,6 @@ dependencies {
 //    coil
     implementation(libs.coil.compose)
 
-
+    implementation(libs.mp.android.chart)
 
 }
