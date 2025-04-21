@@ -1,6 +1,8 @@
 package com.example.expenso.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,9 +24,11 @@ fun AddCategoryScreen(
 
     Column(
         modifier = Modifier
+            .verticalScroll(rememberScrollState())
             .fillMaxSize()
             .padding(24.dp),
         verticalArrangement = Arrangement.Top,
+
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
