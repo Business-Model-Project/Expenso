@@ -1,6 +1,5 @@
 package com.example.expenso.ui.screens
 
-import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.DefaultTab.AlbumsTab.value
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -41,7 +40,8 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
             fontSize = 28.sp,
             fontWeight = FontWeight.Bold,
             color = Color(0xFF6B7280),
-            modifier = Modifier.padding(bottom = 8.dp))
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
         Spacer(modifier = Modifier.height(32.dp))
 
@@ -69,7 +69,7 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Login Button
+        // Login Button with Loading State
         Button(
             onClick = { authViewModel.login(email, password) },
             modifier = Modifier
@@ -78,15 +78,24 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xD9CE5536),
                 contentColor = Color.White
-            )
+            ),
+            enabled = authState !is AuthViewModel.AuthState.Loading
         ) {
-            Text(text = "Log In", fontSize = 16.sp)
+            if (authState is AuthViewModel.AuthState.Loading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Text(text = "Log In", fontSize = 16.sp)
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // Divider
-        HorizontalDivider(
+        Divider(
             modifier = Modifier
                 .fillMaxWidth(0.8f)
                 .padding(vertical = 16.dp),
@@ -110,6 +119,9 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
 
         // Auth State Handling
         when (authState) {
+            AuthViewModel.AuthState.Loading -> {
+                // Loading state handled in the button
+            }
             is AuthViewModel.AuthState.Success -> {
                 LaunchedEffect(Unit) {
                     navController.navigate("home") {
@@ -126,6 +138,6 @@ fun LoginScreen(navController: NavController, authViewModel: AuthViewModel = vie
                 )
             }
             else -> {}
-                }
         }
+    }
 }

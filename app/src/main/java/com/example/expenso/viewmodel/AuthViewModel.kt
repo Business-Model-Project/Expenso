@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -12,43 +13,55 @@ class AuthViewModel : ViewModel() {
 
     private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
 
-    private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
+    private val _authState = MutableStateFlow<AuthState>(AuthState.Loading)
     val authState: StateFlow<AuthState> = _authState
+
+    init {
+        viewModelScope.launch {
+            // Initial auth check with minimum loading time
+            try {
+                // Simulate minimum loading time (1 second)
+                delay(1000)
+
+                val user = firebaseAuth.currentUser
+                if (user != null) {
+                    _authState.value = AuthState.Success
+                    Log.d("Auth", "User already authenticated: ${user.email}")
+                } else {
+                    _authState.value = AuthState.Idle
+                    Log.d("Auth", "No authenticated user found")
+                }
+            } catch (e: Exception) {
+                Log.e("Auth", "Initial auth check failed", e)
+                _authState.value = AuthState.Error("Initialization failed")
+            }
+        }
+    }
 
     fun login(email: String, password: String) {
         _authState.value = AuthState.Loading
-        try {
-            firebaseAuth.signInWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        _authState.value = AuthState.Success
-                    } else {
-                        Log.e("AuthError", "Login failed: ${task.exception?.message}")
-                        _authState.value = AuthState.Error(task.exception?.message ?: "Login failed")
-                    }
+        firebaseAuth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _authState.value = AuthState.Success
+                } else {
+                    Log.e("AuthError", "Login failed: ${task.exception?.message}")
+                    _authState.value = AuthState.Error(task.exception?.message ?: "Login failed")
                 }
-        } catch (e: Exception) {
-            Log.e("AuthError", "Login exception: ${e.message}")
-            _authState.value = AuthState.Error(e.message ?: "Unexpected error")
-        }
+            }
     }
 
     fun signUp(email: String, password: String) {
         _authState.value = AuthState.Loading
-        try {
-            firebaseAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        _authState.value = AuthState.Success
-                    } else {
-                        Log.e("AuthError", "Signup failed: ${task.exception?.message}")
-                        _authState.value = AuthState.Error(task.exception?.message ?: "Signup failed")
-                    }
+        firebaseAuth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    _authState.value = AuthState.Success
+                } else {
+                    Log.e("AuthError", "Signup failed: ${task.exception?.message}")
+                    _authState.value = AuthState.Error(task.exception?.message ?: "Signup failed")
                 }
-        } catch (e: Exception) {
-            Log.e("AuthError", "Signup exception: ${e.message}")
-            _authState.value = AuthState.Error(e.message ?: "Unexpected error")
-        }
+            }
     }
 
     fun logout() {
