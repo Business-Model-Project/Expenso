@@ -14,6 +14,8 @@ navigationCompose = "2.8.9"
 material-icons-extended = "1.5.0"
 coil = "2.5.0"
 mpAndroidChart = "v3.1.0"
+litertSupportApi = "1.2.0"
+
 
 
 [libraries]
@@ -42,6 +44,7 @@ androidx-navigation-compose = { group = "androidx.navigation", name = "navigatio
 material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "material-icons-extended" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 mp-android-chart = {group = "com.github.PhilJay",name = "MPAndroidChart",version.ref = "mpAndroidChart"}
+litert-support-api = { group = "com.google.ai.edge.litert", name = "litert-support-api", version.ref = "litertSupportApi" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

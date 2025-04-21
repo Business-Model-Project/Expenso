@@ -1,10 +1,21 @@
 package com.example.expenso.ui.screens
 
 import android.graphics.Color
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -20,7 +31,9 @@ import com.github.mikephil.charting.formatter.ValueFormatter
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
+import androidx.compose.ui.graphics.Color as ComposeColor
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(
     expenseViewModel: ExpenseViewModel = viewModel()
@@ -28,108 +41,320 @@ fun ReportsScreen(
     val expenses by expenseViewModel.expenses.collectAsState()
     val context = LocalContext.current
 
+    // Filter states
+    var selectedTimeFilter by remember { mutableStateOf("ALL") }
+    var selectedCategory by remember { mutableStateOf("") }
+    val timeFilters = listOf("ALL", "Monthly", "Weekly", "Range")
+    val categories = remember { expenses.map { it.category }.distinct() }
+
+    // Date range states
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var startDate by remember { mutableStateOf<Date?>(null) }
+    var endDate by remember { mutableStateOf<Date?>(null) }
+
+    // Filtered expenses
+    val filteredExpenses = remember(expenses, selectedTimeFilter, selectedCategory, startDate, endDate) {
+        expenses.filter { expense ->
+            (selectedCategory.isEmpty() || expense.category == selectedCategory) &&
+                    filterByDate(expense.date?.toDate(), selectedTimeFilter, startDate, endDate)
+        }
+    }
+
     // Process data for charts
-    val (barEntries, barLabels) = remember(expenses) { processBarData(expenses) }
-    val pieEntries = remember(expenses) { processPieData(expenses) }
+    val (barEntries, barLabels) = remember(filteredExpenses, selectedTimeFilter) {
+        processBarData(filteredExpenses, selectedTimeFilter)
+    }
+    val (pieEntries, totalSum) = remember(filteredExpenses) { processPieData(filteredExpenses) }
+    val colorPalette = remember { getColorPalette().map { ComposeColor(it) } }
+
+    // Category-color pairs for legend
+    val categoriesWithColors = remember(pieEntries) {
+        pieEntries.mapIndexed { index, entry ->
+            Pair(
+                entry.label ?: "Uncategorized",
+                colorPalette.getOrNull(index % colorPalette.size) ?: ComposeColor.Black
+            )
+        }
+    }
+
+    // Date pickers
+    if (showStartDatePicker) {
+        DatePickerDialog(
+            onDismiss = { showStartDatePicker = false },
+            onConfirm = { date ->
+                startDate = date
+                showStartDatePicker = false
+                showEndDatePicker = true
+            }
+        )
+    }
+
+    if (showEndDatePicker) {
+        DatePickerDialog(
+            onDismiss = {
+                showEndDatePicker = false
+                startDate = null
+                endDate = null
+                selectedTimeFilter = "ALL"
+            },
+            onConfirm = { date ->
+                endDate = date
+                showEndDatePicker = false
+                selectedTimeFilter = "Range"
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Text("Expense Report", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(16.dp))
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp))
+            {
+                Text("Expense Report", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(16.dp))
 
-        // Monthly Bar Chart
-        Text("Monthly Expenses", style = MaterialTheme.typography.titleMedium)
-        AndroidView(
-            factory = { context ->
-                BarChart(context).apply {
-                    configureBarChart(barLabels)  // Pass labels here
-                    data = BarData(
-                        BarDataSet(barEntries, "Monthly Expenses").apply {
-                            color = Color.parseColor("#2196F3")
-                            valueTextColor = Color.BLACK
-                            valueFormatter = CurrencyFormatter()
-                        }
-                    )
-                    animateY(1000)
-                    invalidate()
+                // Time filters
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(timeFilters) { filter ->
+                        FilterChip(
+                            selected = selectedTimeFilter == filter,
+                            onClick = {
+                                if (filter == "Range") {
+                                    showStartDatePicker = true
+                                } else {
+                                    selectedTimeFilter = filter
+                                    startDate = null
+                                    endDate = null
+                                }
+                            },
+                            label = { Text(filter) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
                 }
-            },
-            modifier = Modifier
-                .height(300.dp)
-                .fillMaxWidth()
-        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(8.dp))
 
-        // Category Pie Chart
-        Text("Expense Categories", style = MaterialTheme.typography.titleMedium)
-        AndroidView(
-            factory = { context ->
-                PieChart(context).apply {
-                    configurePieChart()
-                    data = PieData(
-                        PieDataSet(pieEntries, "Expense Categories").apply {
-                            colors = getColorPalette()
-                            valueTextColor = Color.WHITE
-                            valueFormatter = PercentageFormatter()
-                        }
-                    )
-                    animateXY(1000, 1000)
-                    invalidate()
+                // Category filters
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(categories) { category ->
+                        FilterChip(
+                            selected = selectedCategory == category,
+                            onClick = {
+                                selectedCategory = if (selectedCategory == category) "" else category
+                            },
+                            label = { Text(category) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                            )
+                        )
+                    }
                 }
+
+                Spacer(Modifier.height(16.dp))
+
+                // Date range display
+                if (selectedTimeFilter == "Range" && startDate != null && endDate != null) {
+                    val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+                    Text(
+                        text = "Selected Range: ${dateFormat.format(startDate!!)} - ${dateFormat.format(endDate!!)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                }
+
+                // Bar Chart
+                Text("Expense Trend", style = MaterialTheme.typography.titleMedium)
+                AndroidView(
+                    factory = { BarChart(context) },
+                    modifier = Modifier
+                        .height(300.dp)
+                        .fillMaxWidth(),
+                    update = { chart ->
+                        chart.configureBarChart(barLabels)
+                        chart.data = BarData(
+                            BarDataSet(barEntries, "Expenses").apply {
+                                color = Color.parseColor("#2196F3")
+                                valueTextColor = Color.BLACK
+                                valueFormatter = CurrencyFormatter()
+                            }
+                        )
+                        chart.animateY(1000)
+                        chart.invalidate()
+                    }
+                )
+
+                Spacer(Modifier.height(24.dp))
+
+                // Pie Chart
+                Text("Category Breakdown", style = MaterialTheme.typography.titleMedium)
+                AndroidView(
+                    factory = { PieChart(context) },
+                    modifier = Modifier
+                        .height(300.dp)
+                        .fillMaxWidth(),
+                    update = { chart ->
+                        chart.configurePieChart()
+                        chart.data = PieData(
+                            PieDataSet(pieEntries, "").apply {
+                                colors = colorPalette.map { it.toArgb() }
+                                valueTextColor = Color.BLACK
+                                valueTextSize = 12f
+                                valueFormatter = PercentageFormatter(totalSum)
+                            }
+                        )
+                        chart.animateXY(1000, 1000)
+                        chart.invalidate()
+                    }
+                )
+
+                // Category Legend
+                Spacer(Modifier.height(16.dp))
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    items(categoriesWithColors) { (category, color) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .background(color = color)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = category,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = color
+                            )
+                        }
+                    }
+                }
+            }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (Date) -> Unit
+) {
+    val datePickerState = rememberDatePickerState()
+    var showDialog by remember { mutableStateOf(true) }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                onDismiss()
+                showDialog = false
             },
-            modifier = Modifier
-                .height(300.dp)
-                .fillMaxWidth()
+            confirmButton = {
+                Button(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let {
+                            onConfirm(Date(it))
+                        }
+                        showDialog = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        onDismiss()
+                        showDialog = false
+                    }
+                ) { Text("Cancel") }
+            },
+            title = { Text("Select Date") },
+            text = {
+                DatePicker(
+                    state = datePickerState,
+                    title = null
+                )
+            }
         )
     }
 }
 
-// Data processing functions
-private fun processBarData(expenses: List<Expense>): Pair<ArrayList<BarEntry>, List<String>> {
+private fun filterByDate(
+    date: Date?,
+    filter: String,
+    startDate: Date? = null,
+    endDate: Date? = null
+): Boolean {
+    if (date == null) return false
+    val calDate = Calendar.getInstance().apply { time = date }
+    val calStart = startDate?.let { Calendar.getInstance().apply { time = it } }
+    val calEnd = endDate?.let { Calendar.getInstance().apply { time = it } }
+
+    return when (filter) {
+        "Weekly" -> calDate.get(Calendar.WEEK_OF_YEAR) == Calendar.getInstance().get(Calendar.WEEK_OF_YEAR) &&
+                calDate.get(Calendar.YEAR) == Calendar.getInstance().get(Calendar.YEAR)
+        "Monthly" -> calDate.get(Calendar.MONTH) == Calendar.getInstance().get(Calendar.MONTH) &&
+                calDate.get(Calendar.YEAR) == Calendar.getInstance().get(Calendar.YEAR)
+        "Range" -> (calStart == null || calDate.time >= calStart.time) &&
+                (calEnd == null || calDate.time <= calEnd.time)
+        else -> true
+    }
+}
+
+private fun processBarData(expenses: List<Expense>, filter: String): Pair<ArrayList<BarEntry>, List<String>> {
+    val format = when (filter) {
+        "Weekly" -> "ww"
+        "Monthly" -> "MMM"
+        else -> "dd MMM"
+    }
+    val dateFormat = SimpleDateFormat(format, Locale.getDefault())
+
     val grouped = expenses.groupBy {
-        it.date?.toDate()?.let { date ->
-            SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(date)
-        } ?: "Unknown"
+        it.date?.toDate()?.let { dateFormat.format(it) } ?: "Unknown"
     }
 
-    val sortedEntries = grouped.entries.sortedBy {
-        it.key.let { key ->
-            SimpleDateFormat("MMM yyyy", Locale.getDefault()).parse(key)
-        }
+    val sorted = grouped.entries.sortedBy {
+        it.key.let { dateFormat.parse(it)?.time ?: 0L }
     }
 
-    val entries = ArrayList<BarEntry>()
-    val labels = ArrayList<String>()
-
-    sortedEntries.forEachIndexed { index, entry ->
-        val total = entry.value.sumOf { it.amount }
-        entries.add(BarEntry(index.toFloat(), total.toFloat()))
-        labels.add(entry.key)
-    }
-
-    return Pair(entries, labels)
+    return Pair(
+        ArrayList(sorted.mapIndexed { index, entry ->
+            BarEntry(index.toFloat(), entry.value.sumOf { it.amount }.toFloat())
+        }),
+        sorted.map { it.key }
+    )
 }
 
-private fun processPieData(expenses: List<Expense>): ArrayList<PieEntry> {
+private fun processPieData(expenses: List<Expense>): Pair<ArrayList<PieEntry>, Float> {
     val grouped = expenses.groupBy { it.category }
-    return ArrayList(grouped.map {
-        PieEntry(it.value.sumOf { expense -> expense.amount }.toFloat(), it.key)
-    })
+    val total = expenses.sumOf { it.amount }.toFloat()
+    return Pair(
+        ArrayList(grouped.map { (k, v) ->
+            PieEntry(v.sumOf { it.amount }.toFloat(), k)
+        }),
+        total
+    )
 }
 
-// Chart configuration (modified to accept barLabels parameter)
-private fun BarChart.configureBarChart(barLabels: List<String>) {
+private fun BarChart.configureBarChart(labels: List<String>) {
     description.isEnabled = false
     legend.isEnabled = false
     setTouchEnabled(false)
 
     xAxis.apply {
         position = XAxis.XAxisPosition.BOTTOM
-        valueFormatter = IndexAxisValueFormatter(barLabels.toTypedArray()) // Convert to array
+        valueFormatter = IndexAxisValueFormatter(labels)
         granularity = 1f
         setAvoidFirstLastClipping(true)
     }
@@ -138,40 +363,35 @@ private fun BarChart.configureBarChart(barLabels: List<String>) {
         valueFormatter = CurrencyFormatter()
         axisMinimum = 0f
     }
-
     axisRight.isEnabled = false
 }
 
 private fun PieChart.configurePieChart() {
     description.isEnabled = false
     legend.isEnabled = false
-    setEntryLabelColor(Color.WHITE)
+    setEntryLabelColor(Color.BLACK)
     setHoleColor(Color.TRANSPARENT)
     setTransparentCircleAlpha(0)
     setDrawEntryLabels(true)
+    setUsePercentValues(false)
 }
 
-// Formatters
 class CurrencyFormatter : ValueFormatter() {
     override fun getFormattedValue(value: Float): String {
-        return "₹${String.format(Locale.ENGLISH, "%.2f", abs(value))}"
+        return "€${String.format(Locale.ENGLISH, "%.2f", abs(value))}"
     }
 }
 
-class PercentageFormatter : ValueFormatter() {
+class PercentageFormatter(private val total: Float) : ValueFormatter() {
     override fun getFormattedValue(value: Float): String {
-        return "${String.format(Locale.ENGLISH, "%.1f", value)}%"
+        return if (total == 0f) "0%" else "${(value / total * 100).toInt()}%"
     }
 }
 
-// Color palette for pie chart
-private fun getColorPalette(): List<Int> {
-    return listOf(
-        Color.parseColor("#FF6384"),
-        Color.parseColor("#36A2EB"),
-        Color.parseColor("#FFCE56"),
-        Color.parseColor("#4BC0C0"),
-        Color.parseColor("#9966FF"),
-        Color.parseColor("#FF9F40")
-        )
-}
+private fun getColorPalette() = listOf(
+    Color.parseColor("#FF6384"), Color.parseColor("#36A2EB"),
+    Color.parseColor("#FFCE56"), Color.parseColor("#4BC0C0"),
+    Color.parseColor("#9966FF"), Color.parseColor("#FF9F40"),
+    Color.parseColor("#2ECC71"), Color.parseColor("#E74C3C"),
+    Color.parseColor("#9B59B6"), Color.parseColor("#34495E")
+)
