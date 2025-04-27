@@ -2,17 +2,30 @@ package com.example.expenso.ui.screens
 
 import android.app.DatePickerDialog
 import android.content.Context
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -26,6 +39,7 @@ import java.text.SimpleDateFormat
 import kotlinx.coroutines.tasks.await
 import java.util.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavController,
@@ -39,6 +53,7 @@ fun HomeScreen(
 
     var selectedFilter by remember { mutableStateOf("All") }
     var selectedCategory by remember { mutableStateOf("") }
+    var showFilters by remember { mutableStateOf(false) }
 
     var startDate by remember { mutableStateOf<Date?>(null) }
     var endDate by remember { mutableStateOf<Date?>(null) }
@@ -100,7 +115,7 @@ fun HomeScreen(
     }
 
     // Budget notification logic
-    LaunchedEffect(totalAmount, notifyOnExceed) {  // Add notifyOnExceed as a dependency
+    LaunchedEffect(totalAmount, notifyOnExceed) {
         if (notifyOnExceed && budget > 0 && totalAmount > budget) {
             if (!notificationSentThisSession) {
                 NotificationUtils.sendBudgetExceededNotification(context, totalAmount, budget)
@@ -111,91 +126,268 @@ fun HomeScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Expense Tracker", style = MaterialTheme.typography.headlineMedium)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Budget status card
-        Card(
-            colors = CardDefaults.cardColors(
-                containerColor = when {
-                    budget > 0 && totalAmount > budget -> MaterialTheme.colorScheme.errorContainer
-                    budget > 0 -> MaterialTheme.colorScheme.primaryContainer
-                    else -> MaterialTheme.colorScheme.surfaceVariant
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Expense Tracker") },
+                actions = {
+                    IconButton(onClick = { showFilters = !showFilters }) {
+                        Icon(
+                            imageVector = Icons.Default.FilterList,
+                            contentDescription = "Filter",
+                            tint = if (showFilters) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                        )
+                    }
                 }
-            ),
+            )
+        }
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp)
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(horizontal = 16.dp)
         ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Budget status card
+            BudgetStatusCard(totalAmount, budget)
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Filters section
+            AnimatedVisibility(
+                visible = showFilters,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
             ) {
-                Text("Total: €${"%.2f".format(totalAmount)}", style = MaterialTheme.typography.headlineSmall)
-                if (budget > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Budget: €${"%.2f".format(budget)} (${"%.1f".format(totalAmount/budget*100)}%)",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                    if (totalAmount > budget) {
+                FiltersSection(
+                    selectedFilter = selectedFilter,
+                    onFilterSelected = { selectedFilter = it },
+                    categories = categories.map { it.name },
+                    selectedCategory = selectedCategory,
+                    onCategorySelected = { selectedCategory = it },
+                    startDate = startDate,
+                    endDate = endDate,
+                    onStartSelected = { startDate = it },
+                    onEndSelected = { endDate = it },
+                    onReset = {
+                        startDate = null
+                        endDate = null
+                    },
+                    formatter = dateFormatter
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Active filters display
+            if (selectedFilter != "All" || selectedCategory.isNotBlank()) {
+                ActiveFiltersDisplay(
+                    selectedFilter = selectedFilter,
+                    selectedCategory = selectedCategory,
+                    startDate = startDate,
+                    endDate = endDate,
+                    dateFormatter = dateFormatter,
+                    onClearAll = {
+                        selectedFilter = "All"
+                        selectedCategory = ""
+                        startDate = null
+                        endDate = null
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Expenses list
+            if (filteredExpenses.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            "Over budget by €${"%.2f".format(totalAmount - budget)}",
+                            "No expenses found",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            "Try adjusting your filters",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.error
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    "${filteredExpenses.size} expense${if (filteredExpenses.size != 1) "s" else ""} found",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LazyColumn(modifier = Modifier.weight(1f)) {
+                    items(filteredExpenses) { expense ->
+                        ExpenseItem(
+                            expense = expense,
+                            onEditClick = {
+                                navController.navigate("edit_expense/${expense.id}")
+                            },
+                            onDeleteClick = {
+                                expenseViewModel.deleteExpense(expense.id)
+                            }
                         )
                     }
                 }
             }
         }
+    }
+}
 
-        FilterChipsRow(selectedFilter) { selectedFilter = it }
+@Composable
+private fun BudgetStatusCard(totalAmount: Double, budget: Double) {
+    val budgetPercentage = if (budget > 0) (totalAmount / budget * 100) else 0.0
+    val cardColor = when {
+        budget > 0 && totalAmount > budget -> MaterialTheme.colorScheme.errorContainer
+        budget > 0 && budgetPercentage > 80 -> MaterialTheme.colorScheme.tertiaryContainer
+        budget > 0 -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.surfaceVariant
+    }
 
-        Spacer(modifier = Modifier.height(8.dp))
+    val textColor = when {
+        budget > 0 && totalAmount > budget -> MaterialTheme.colorScheme.onErrorContainer
+        budget > 0 && budgetPercentage > 80 -> MaterialTheme.colorScheme.onTertiaryContainer
+        budget > 0 -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
-        CategoryDropdown(
-            categories = categories.map { it.name },
-            selectedCategory = selectedCategory,
-            onCategorySelected = { selectedCategory = it }
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        if (selectedFilter == "Range") {
-            DateRangeSelector(
-                startDate = startDate,
-                endDate = endDate,
-                onStartSelected = { startDate = it },
-                onEndSelected = { endDate = it },
-                onReset = {
-                    startDate = null
-                    endDate = null
-                },
-                formatter = dateFormatter
+    Card(
+        colors = CardDefaults.cardColors(containerColor = cardColor),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Total Expenses",
+                style = MaterialTheme.typography.titleMedium,
+                color = textColor
             )
-        }
+            Text(
+                "€${String.format("%.2f", totalAmount)}",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
 
-        Spacer(modifier = Modifier.height(12.dp))
+            if (budget > 0) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-        if (filteredExpenses.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No expenses found", style = MaterialTheme.typography.bodyMedium)
+                LinearProgressIndicator(
+                    progress = (totalAmount / budget).toFloat().coerceIn(0f, 1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(RoundedCornerShape(4.dp)),
+                    color = when {
+                        budgetPercentage > 100 -> MaterialTheme.colorScheme.error
+                        budgetPercentage > 80 -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.primary
+                    },
+                    trackColor = Color.Black.copy(alpha = 0.1f)
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Budget: €${String.format("%.2f", budget)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textColor
+                    )
+                    Text(
+                        "${String.format("%.1f", budgetPercentage)}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = textColor
+                    )
+                }
+
+                if (totalAmount > budget) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Over budget by €${String.format("%.2f", totalAmount - budget)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
-        } else {
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(filteredExpenses) { expense ->
-                    ExpenseItem(
-                        expense = expense,
-                        onEditClick = {
-                            navController.navigate("edit_expense/${expense.id}")
-                        },
-                        onDeleteClick = {
-                            expenseViewModel.deleteExpense(expense.id)
-                        }
+        }
+    }
+}
+
+@Composable
+private fun FiltersSection(
+    selectedFilter: String,
+    onFilterSelected: (String) -> Unit,
+    categories: List<String>,
+    selectedCategory: String,
+    onCategorySelected: (String) -> Unit,
+    startDate: Date?,
+    endDate: Date?,
+    onStartSelected: (Date) -> Unit,
+    onEndSelected: (Date) -> Unit,
+    onReset: () -> Unit,
+    formatter: SimpleDateFormat
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Time period filters
+            Column {
+                Text(
+                    "Time Period",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                FilterChipsRow(selectedFilter, onFilterSelected)
+            }
+
+            // Category filter
+            Column {
+                Text(
+                    "Category",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                CategoryDropdown(categories, selectedCategory, onCategorySelected)
+            }
+
+            // Date range selector (only show when Range filter is selected)
+            AnimatedVisibility(visible = selectedFilter == "Range") {
+                Column {
+                    Text(
+                        "Date Range",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    DateRangeSelector(
+                        startDate = startDate,
+                        endDate = endDate,
+                        onStartSelected = onStartSelected,
+                        onEndSelected = onEndSelected,
+                        onReset = onReset,
+                        formatter = formatter
                     )
                 }
             }
@@ -206,6 +398,7 @@ fun HomeScreen(
 @Composable
 private fun FilterChipsRow(selectedFilter: String, onFilterSelected: (String) -> Unit) {
     val filters = listOf("All", "Monthly", "Weekly", "Range")
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -214,8 +407,70 @@ private fun FilterChipsRow(selectedFilter: String, onFilterSelected: (String) ->
             FilterChip(
                 selected = selectedFilter == label,
                 onClick = { onFilterSelected(label) },
-                label = { Text(label) }
+                label = { Text(label) },
+                leadingIcon = if (selectedFilter == label) {
+                    { Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(16.dp)) }
+                } else null
             )
+        }
+    }
+}
+
+@Composable
+private fun ActiveFiltersDisplay(
+    selectedFilter: String,
+    selectedCategory: String,
+    startDate: Date?,
+    endDate: Date?,
+    dateFormatter: SimpleDateFormat,
+    onClearAll: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Active Filters:",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (selectedFilter != "All") {
+                SuggestionChip(
+                    onClick = { },
+                    label = { Text(selectedFilter) }
+                )
+            }
+
+            if (selectedCategory.isNotBlank()) {
+                SuggestionChip(
+                    onClick = { },
+                    label = { Text(selectedCategory) },
+                    icon = { Icon(Icons.Outlined.Category, null, modifier = Modifier.size(16.dp)) }
+                )
+            }
+
+            if (selectedFilter == "Range" && startDate != null && endDate != null) {
+                SuggestionChip(
+                    onClick = { },
+                    label = {
+                        Text(
+                            "${dateFormatter.format(startDate)} - ${dateFormatter.format(endDate)}",
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                )
+            }
+        }
+
+        TextButton(onClick = onClearAll) {
+            Text("Clear All")
         }
     }
 }
@@ -236,12 +491,20 @@ private fun CategoryDropdown(
             onClick = { expanded = true },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(selectedText)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(selectedText)
+                Icon(Icons.Outlined.Category, contentDescription = null)
+            }
         }
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.fillMaxWidth(0.9f)
         ) {
             allOptions.forEach { option ->
                 DropdownMenuItem(
@@ -284,23 +547,46 @@ private fun DateRangeSelector(
         calendar.get(Calendar.DAY_OF_MONTH)
     )
 
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button(onClick = { startPicker.show() }) {
-            Text(text = startDate?.let { "From: ${formatter.format(it)}" } ?: "From")
-        }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { startPicker.show() },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = startDate?.let { formatter.format(it) } ?: "Start Date",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
 
-        Button(onClick = { endPicker.show() }) {
-            Text(text = endDate?.let { "To: ${formatter.format(it)}" } ?: "To")
+            OutlinedButton(
+                onClick = { endPicker.show() },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = endDate?.let { formatter.format(it) } ?: "End Date",
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
 
         if (startDate != null || endDate != null) {
-            TextButton(onClick = onReset) {
-                Text("Reset")
+            TextButton(
+                onClick = onReset,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Reset Dates")
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ExpenseItem(
     expense: Expense,
@@ -338,7 +624,11 @@ private fun ExpenseItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 4.dp),
-        elevation = CardDefaults.cardElevation(2.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(2.dp),
+        onClick = onEditClick
     ) {
         Row(
             modifier = Modifier
@@ -348,20 +638,49 @@ private fun ExpenseItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = expense.category, style = MaterialTheme.typography.titleLarge)
-                Text(text = "€${"%.2f".format(expense.amount)}", style = MaterialTheme.typography.bodyMedium)
-                Text(text = dateFormatted, style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = expense.category,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "€${String.format("%.2f", expense.amount)}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = dateFormatted,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 if (expense.note.isNotBlank()) {
-                    Text(text = expense.note, style = MaterialTheme.typography.bodySmall)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = expense.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
 
             Row {
                 IconButton(onClick = onEditClick) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                    Icon(
+                        Icons.Default.Edit,
+                        contentDescription = "Edit",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
                 IconButton(onClick = { showDialog = true }) {
-                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         }
