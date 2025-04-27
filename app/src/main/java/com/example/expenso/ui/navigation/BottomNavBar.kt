@@ -13,7 +13,7 @@ fun BottomNavBar(navController: NavController) {
     val items = listOf(
         BottomNavItem("home", "Home", Icons.Default.Home),
         BottomNavItem("reports", "Reports", Icons.Default.Analytics),
-        BottomNavItem("add_expense", "Add Expense", Icons.Default.Add),
+        BottomNavItem("add_expense", "Expense", Icons.Default.Add),
         BottomNavItem("categories", "Categories", Icons.Default.FilterList),
         BottomNavItem("settings", "Settings", Icons.Default.Settings)
     )
