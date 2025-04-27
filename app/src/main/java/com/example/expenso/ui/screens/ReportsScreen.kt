@@ -111,139 +111,139 @@ fun ReportsScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(16.dp))
-            {
-                Text("Expense Report", style = MaterialTheme.typography.headlineMedium)
-                Spacer(Modifier.height(16.dp))
+    {
+        Text("Expense Report", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
 
-                // Time filters
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(timeFilters) { filter ->
-                        FilterChip(
-                            selected = selectedTimeFilter == filter,
-                            onClick = {
-                                if (filter == "Range") {
-                                    showStartDatePicker = true
-                                } else {
-                                    selectedTimeFilter = filter
-                                    startDate = null
-                                    endDate = null
-                                }
-                            },
-                            label = { Text(filter) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(8.dp))
-
-                // Category filters
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(categories) { category ->
-                        FilterChip(
-                            selected = selectedCategory == category,
-                            onClick = {
-                                selectedCategory = if (selectedCategory == category) "" else category
-                            },
-                            label = { Text(category) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                            )
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                // Date range display
-                if (selectedTimeFilter == "Range" && startDate != null && endDate != null) {
-                    val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
-                    Text(
-                        text = "Selected Range: ${dateFormat.format(startDate!!)} - ${dateFormat.format(endDate!!)}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                }
-
-                // Bar Chart
-                Text("Expense Trend", style = MaterialTheme.typography.titleMedium)
-                AndroidView(
-                    factory = { BarChart(context) },
-                    modifier = Modifier
-                        .height(300.dp)
-                        .fillMaxWidth(),
-                    update = { chart ->
-                        chart.configureBarChart(barLabels)
-                        chart.data = BarData(
-                            BarDataSet(barEntries, "Expenses").apply {
-                                color = Color.parseColor("#2196F3")
-                                valueTextColor = Color.BLACK
-                                valueFormatter = CurrencyFormatter()
-                            }
-                        )
-                        chart.animateY(1000)
-                        chart.invalidate()
-                    }
-                )
-
-                Spacer(Modifier.height(24.dp))
-
-                // Pie Chart
-                Text("Category Breakdown", style = MaterialTheme.typography.titleMedium)
-                AndroidView(
-                    factory = { PieChart(context) },
-                    modifier = Modifier
-                        .height(300.dp)
-                        .fillMaxWidth(),
-                    update = { chart ->
-                        chart.configurePieChart()
-                        chart.data = PieData(
-                            PieDataSet(pieEntries, "").apply {
-                                colors = colorPalette.map { it.toArgb() }
-                                valueTextColor = Color.BLACK
-                                valueTextSize = 12f
-                                valueFormatter = PercentageFormatter(totalSum)
-                            }
-                        )
-                        chart.animateXY(1000, 1000)
-                        chart.invalidate()
-                    }
-                )
-
-                // Category Legend
-                Spacer(Modifier.height(16.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    items(categoriesWithColors) { (category, color) ->
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(16.dp)
-                                    .background(color = color)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = category,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = color
-                            )
+        // Time filters
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(timeFilters) { filter ->
+                FilterChip(
+                    selected = selectedTimeFilter == filter,
+                    onClick = {
+                        if (filter == "Range") {
+                            showStartDatePicker = true
+                        } else {
+                            selectedTimeFilter = filter
+                            startDate = null
+                            endDate = null
                         }
+                    },
+                    label = { Text(filter) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Category filters
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categories) { category ->
+                FilterChip(
+                    selected = selectedCategory == category,
+                    onClick = {
+                        selectedCategory = if (selectedCategory == category) "" else category
+                    },
+                    label = { Text(category) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primary,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Date range display
+        if (selectedTimeFilter == "Range" && startDate != null && endDate != null) {
+            val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+            Text(
+                text = "Selected Range: ${dateFormat.format(startDate!!)} - ${dateFormat.format(endDate!!)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+        }
+
+        // Bar Chart
+        Text("Expense Trend", style = MaterialTheme.typography.titleMedium)
+        AndroidView(
+            factory = { BarChart(context) },
+            modifier = Modifier
+                .height(300.dp)
+                .fillMaxWidth(),
+            update = { chart ->
+                chart.configureBarChart(barLabels)
+                chart.data = BarData(
+                    BarDataSet(barEntries, "Expenses").apply {
+                        color = Color.parseColor("#2196F3")
+                        valueTextColor = Color.BLACK
+                        valueFormatter = CurrencyFormatter()
                     }
+                )
+                chart.animateY(1000)
+                chart.invalidate()
+            }
+        )
+
+        Spacer(Modifier.height(24.dp))
+
+        // Pie Chart
+        Text("Category Breakdown", style = MaterialTheme.typography.titleMedium)
+        AndroidView(
+            factory = { PieChart(context) },
+            modifier = Modifier
+                .height(300.dp)
+                .fillMaxWidth(),
+            update = { chart ->
+                chart.configurePieChart()
+                chart.data = PieData(
+                    PieDataSet(pieEntries, "").apply {
+                        colors = colorPalette.map { it.toArgb() }
+                        valueTextColor = Color.BLACK
+                        valueTextSize = 12f
+                        valueFormatter = PercentageFormatter(totalSum)
+                    }
+                )
+                chart.animateXY(1000, 1000)
+                chart.invalidate()
+            }
+        )
+
+        // Category Legend
+        Spacer(Modifier.height(16.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            items(categoriesWithColors) { (category, color) ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(16.dp)
+                            .background(color = color)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = category,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = color
+                    )
                 }
             }
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
