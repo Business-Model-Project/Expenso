@@ -8,6 +8,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
+// -------------------------
+// Data Class
+// -------------------------
+data class BottomNavItem(
+    val route: String,
+    val title: String,
+    val icon: ImageVector
+)
+
+// -------------------------
+// Bottom Navigation Bar
+// -------------------------
 @Composable
 fun BottomNavBar(navController: NavController) {
     val items = listOf(
@@ -29,14 +41,14 @@ fun BottomNavBar(navController: NavController) {
                 selected = currentRoute == item.route,
                 onClick = {
                     navController.navigate(item.route) {
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                        popUpTo(navController.graph.startDestinationId) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }
                 }
             )
-        }
-    }
+            }
 }
-
-data class BottomNavItem(val route: String, val title: String, val icon: ImageVector)
+}
